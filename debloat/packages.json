@@ -1,0 +1,21 @@
+{
+  "device": "Google TV Streamer (4K, 2024)",
+  "packages": [
+    { "pkg": "com.google.android.apps.tv.dreamx", "label": "Ambient screensaver", "tier": "SAFE", "why": "Photo/art screensaver service; disable if you never use ambient mode" },
+    { "pkg": "com.google.android.backdrop", "label": "Backdrop daydream", "tier": "SAFE", "why": "Legacy screensaver backdrop" },
+    { "pkg": "com.google.android.feedback", "label": "Google Feedback", "tier": "SAFE", "why": "Crash and feedback uploader" },
+    { "pkg": "com.google.android.partnersetup", "label": "Partner setup", "tier": "SAFE", "why": "OEM partner provisioning, only used during first setup" },
+    { "pkg": "com.google.android.youtube.tvmusic", "label": "YouTube Music", "tier": "SAFE", "why": "Preloaded app; reinstall from Play if wanted" },
+    { "pkg": "com.google.android.tvrecommendations", "label": "TV recommendations", "tier": "OPTIONAL", "why": "Recommendation row provider" },
+    { "pkg": "com.google.android.marvin.talkback", "label": "TalkBack", "tier": "OPTIONAL", "why": "Screen reader; keep if anyone needs accessibility" },
+    { "pkg": "com.google.android.tts", "label": "Text to speech", "tier": "OPTIONAL", "why": "Used by TalkBack and Assistant voice replies" },
+    { "pkg": "com.google.android.syncadapters.calendar", "label": "Calendar sync", "tier": "OPTIONAL", "why": "Account sync adapter, unused on TV" },
+    { "pkg": "com.android.tv.feedbackconsent", "label": "Feedback consent", "tier": "SAFE", "why": "Prompt for sending usage feedback to Google" },
+    { "pkg": "com.google.android.play.games", "label": "Google Play Games", "tier": "OPTIONAL", "why": "Preloaded app; reinstall from Play if wanted" },
+    { "pkg": "com.android.dreams.basic", "label": "Basic screensaver", "tier": "OPTIONAL", "why": "Fallback colour screensaver; keep if Ambient is disabled and you want any screensaver" },
+    { "pkg": "com.google.android.katniss", "label": "Google Assistant and voice search", "tier": "RISKY", "why": "Disabling removes voice search; the Google TV phone app voice button stops working" },
+    { "pkg": "com.google.android.apps.mediashell", "label": "Chromecast built-in", "tier": "RISKY", "why": "Disabling kills casting from phones" },
+    { "pkg": "com.google.android.videos", "label": "Google TV app and content hub", "tier": "RISKY", "why": "Powers the For You tab and watchlist; home rows may break" },
+    { "pkg": "com.google.android.apps.tv.launcherx", "label": "Google TV launcher", "tier": "RISKY", "why": "Only disable after installing a replacement launcher such as Projectivy or FLauncher" }
+  ]
+}

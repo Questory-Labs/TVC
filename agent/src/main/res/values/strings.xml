@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TV Companion Agent</string>
+    <string name="accessibility_label">TV Companion remote control</string>
+    <string name="accessibility_description">Lets the TV Companion phone app move focus, press buttons and type text on this device. Nothing is read or sent off this device.</string>
+    <string name="notification_channel">Agent server</string>
+    <string name="notification_text">TV Companion agent is listening on the local network</string>
+</resources>
