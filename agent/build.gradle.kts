@@ -14,8 +14,8 @@ android {
         applicationId = "com.questorylabs.tvc.agent"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = providers.gradleProperty("TVC_VERSION_CODE").orNull?.toInt() ?: 1
+        versionName = providers.gradleProperty("TVC_VERSION_NAME").orNull ?: "0.1.0"
     }
 
     buildFeatures {
@@ -35,6 +35,15 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release")
+        }
+    }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            isUniversalApk = true
         }
     }
 

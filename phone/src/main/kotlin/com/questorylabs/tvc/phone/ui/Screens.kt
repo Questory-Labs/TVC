@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,7 +47,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
-import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.Delete
@@ -77,8 +77,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -100,6 +98,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -123,7 +122,6 @@ import com.questorylabs.tvc.shared.SavedDevice
 import com.questorylabs.tvc.shared.VolumeAction
 import kotlinx.coroutines.delay
 import kotlin.math.abs
-import kotlin.math.roundToInt
 import kotlin.math.sign
 
 @Composable
@@ -240,17 +238,20 @@ fun DevicesScreen(vm: MainViewModel, wide: Boolean) {
         ManualAdd(vm)
     }
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Text("Devices", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-        if (wide) {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp), content = saved)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp), content = add)
+    if (wide) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Devices", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp), content = saved)
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp), content = add)
             }
-        } else {
+        }
+    } else {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text("Devices", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
             saved()
             add()
         }
@@ -365,7 +366,12 @@ fun RemoteScreen(vm: MainViewModel, state: DeviceUi, wide: Boolean) {
             FilterChip(selected = !trackpad, onClick = { trackpad = false }, label = { Text("D-pad") })
             FilterChip(selected = trackpad, onClick = { trackpad = true }, label = { Text("Trackpad") })
         }
-        if (trackpad) Trackpad(onKey = { tap(Command.Key(it)) }) else DPad(onKey = { tap(Command.Key(it)) })
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.weight(1f)) {
+                if (trackpad) Trackpad(onKey = { tap(Command.Key(it)) }) else DPad(onKey = { tap(Command.Key(it)) })
+            }
+            VolumeRocker(state, ::tap)
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             RoundKey(Icons.AutoMirrored.Rounded.ArrowBack, "Back") { tap(Command.Key(KeyCode.BACK)) }
             RoundKey(Icons.Rounded.Home, "Home") { tap(Command.Key(KeyCode.HOME)) }
@@ -373,10 +379,9 @@ fun RemoteScreen(vm: MainViewModel, state: DeviceUi, wide: Boolean) {
             RoundKey(Icons.Rounded.PowerSettingsNew, "Power", Tvc.ErrorContainer, Tvc.OnErrorContainer) { tap(Command.Key(KeyCode.POWER_DIALOG)) }
         }
     }
-    val secondary: @Composable ColumnScope.() -> Unit = {
-        if (state.inputs.isNotEmpty()) Inputs(vm, state, ::tap)
-        VolumeCard(state, onSet = { vm.setVolume(host, it) }, onTap = ::tap)
-        TextCard { tap(Command.Text(it)) }
+    val text: @Composable () -> Unit = { TextCard { tap(Command.Text(it)) } }
+    val inputs: @Composable () -> Unit = { if (state.inputs.isNotEmpty()) Inputs(vm, state, ::tap) }
+    val apps: @Composable () -> Unit = {
         if (state.apps.isNotEmpty()) {
             SectionCard {
                 SectionTitle("Apps")
@@ -385,20 +390,43 @@ fun RemoteScreen(vm: MainViewModel, state: DeviceUi, wide: Boolean) {
         }
     }
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        if (wide) {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp), content = primary)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp), content = secondary)
+    val config = LocalConfiguration.current
+    if (wide && config.screenWidthDp > config.screenHeightDp) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                primary()
+                Spacer(Modifier.height(8.dp))
             }
-        } else {
-            primary()
-            secondary()
+            Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                text()
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    inputs()
+                    apps()
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
         }
-        Spacer(Modifier.height(8.dp))
+    } else if (wide) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            text()
+            primary()
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                inputs()
+                apps()
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    } else {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            primary()
+            inputs()
+            text()
+            apps()
+            Spacer(Modifier.height(8.dp))
+        }
     }
 }
 
@@ -607,31 +635,27 @@ private fun Inputs(vm: MainViewModel, state: DeviceUi, tap: (Command) -> Unit) {
 }
 
 @Composable
-private fun VolumeCard(state: DeviceUi, onSet: (Int) -> Unit, onTap: (Command) -> Unit) {
+private fun VolumeRocker(state: DeviceUi, onTap: (Command) -> Unit) {
     val max = state.info?.maxVolume?.takeIf { it > 0 }
-    val level = state.info?.volume
-    var dragging by remember { mutableStateOf<Float?>(null) }
-    SectionCard {
-        SectionTitle("Volume") {
-            if (max != null && level != null) Text("${(dragging?.roundToInt() ?: level)} / $max", style = MaterialTheme.typography.labelLarge, color = Tvc.Primary)
+    val level = state.info?.volume?.takeIf { max != null }
+    Column(
+        Modifier.width(64.dp).clip(RoundedCornerShape(32.dp)).background(Tvc.ContainerLow),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.fillMaxWidth().height(80.dp).springPress({ onTap(Command.Volume(VolumeAction.UP)) }), contentAlignment = Alignment.Center) {
+            Icon(Icons.Rounded.Add, contentDescription = "Volume up", tint = Tvc.Primary, modifier = Modifier.size(32.dp))
         }
-        if (state.info != null && (max == null || level == null)) Text("Controls the TV or soundbar over HDMI-CEC", style = MaterialTheme.typography.bodySmall, color = Tvc.Outline)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RoundKey(Icons.AutoMirrored.Rounded.VolumeOff, "Mute") { onTap(Command.Volume(VolumeAction.MUTE)) }
-            if (max != null && level != null) {
-                Slider(
-                    value = dragging ?: level.toFloat(),
-                    onValueChange = { dragging = it },
-                    onValueChangeFinished = { dragging?.let { onSet(it.roundToInt()) }; dragging = null },
-                    valueRange = 0f..max.toFloat(),
-                    colors = SliderDefaults.colors(thumbColor = Tvc.Primary, activeTrackColor = Tvc.Primary, inactiveTrackColor = Tvc.ContainerHighest),
-                    modifier = Modifier.weight(1f),
-                )
-            } else {
-                Spacer(Modifier.weight(1f))
-            }
-            RoundKey(Icons.Rounded.Remove, "Volume down") { onTap(Command.Volume(VolumeAction.DOWN)) }
-            RoundKey(Icons.AutoMirrored.Rounded.VolumeUp, "Volume up", Tvc.Primary, Tvc.OnPrimary) { onTap(Command.Volume(VolumeAction.UP)) }
+        Column(
+            Modifier.fillMaxWidth().height(64.dp).springPress({ onTap(Command.Volume(VolumeAction.MUTE)) }),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(Icons.AutoMirrored.Rounded.VolumeOff, contentDescription = "Mute", tint = Tvc.OnSurfaceVariant, modifier = Modifier.size(20.dp))
+            if (level != null) Text("$level", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Tvc.Primary)
+            else if (state.info != null) Text("CEC", style = MaterialTheme.typography.labelSmall, color = Tvc.Outline)
+        }
+        Box(Modifier.fillMaxWidth().height(80.dp).springPress({ onTap(Command.Volume(VolumeAction.DOWN)) }), contentAlignment = Alignment.Center) {
+            Icon(Icons.Rounded.Remove, contentDescription = "Volume down", tint = Tvc.OnSurfaceVariant, modifier = Modifier.size(32.dp))
         }
     }
 }

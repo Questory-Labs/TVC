@@ -53,6 +53,10 @@ object ShellPolicy {
     const val DNS_GET_MODE = "settings get global private_dns_mode"
     const val DNS_GET_HOST = "settings get global private_dns_specifier"
 
+    private val failureLine = Regex("^(Error|Exception|Failure|Security exception|java\\.lang\\.|Unknown package)")
+    fun failure(output: String): String? =
+        output.lineSequence().firstOrNull { failureLine.containsMatchIn(it) }?.trim()
+
     private val safeText = Regex("[^A-Za-z0-9 .,@_:/=+-]")
     fun textCommand(text: String): String? {
         val cleaned = safeText.replace(text, "").trim().replace(" ", "%s")

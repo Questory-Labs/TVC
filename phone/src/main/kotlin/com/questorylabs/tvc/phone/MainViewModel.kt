@@ -187,11 +187,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun setVolume(host: String, level: Int) {
-        updateState(host) { it.copy(info = it.info?.copy(volume = level)) }
-        fire(host, Command.SetVolume(level))
-    }
-
     fun sleepTimer(host: String, minutes: Int) {
         viewModelScope.launch {
             send(host, Command.SleepTimer(minutes))

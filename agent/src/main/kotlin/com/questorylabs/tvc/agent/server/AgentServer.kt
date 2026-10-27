@@ -46,7 +46,9 @@ import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.pingPeriod
 import io.ktor.server.websocket.timeout
 import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
+import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -159,10 +161,15 @@ class AgentServer(
             get("/apps") { call.respond(apps.list()) }
             webSocket(Protocol.WS_PATH) {
                 val name = call.request.header(Protocol.CLIENT_HEADER)?.filter { it.isLetterOrDigit() || it in " -_." }?.trim()?.take(40)?.ifEmpty { null } ?: "Phone"
+                val presented = call.request.header("Authorization")
                 val session = AgentState.addClient(name)
                 OverlayController.toast(ToastKind.PHONE, "$name connected", "Remote control")
                 try {
                     for (frame in incoming) {
+                        if (!authorised(presented)) {
+                            close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "token revoked"))
+                            break
+                        }
                         if (frame !is Frame.Text) continue
                         val text = frame.readText()
                         launch {

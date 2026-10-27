@@ -2,6 +2,7 @@ package com.questorylabs.tvc.shared
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -69,5 +70,27 @@ class ShellPolicyTest {
         assertFalse(ShellPolicy.isHostname("bad host.com"))
         assertFalse(ShellPolicy.isHostname("-x.com"))
         assertFalse(ShellPolicy.isHostname(""))
+    }
+
+    @Test
+    fun detectsFailureOutput() {
+        assertEquals(
+            "Error: Activity not started, unable to resolve Intent",
+            ShellPolicy.failure("Starting: Intent { act=android.intent.action.VIEW }\nError: Activity not started, unable to resolve Intent\n"),
+        )
+        assertEquals(
+            "Exception occurred while executing 'disable-user':",
+            ShellPolicy.failure("Exception occurred while executing 'disable-user':\njava.lang.IllegalArgumentException: Unknown package: com.x\n"),
+        )
+        assertEquals("Security exception: Shell cannot change component state", ShellPolicy.failure("Security exception: Shell cannot change component state\n"))
+    }
+
+    @Test
+    fun acceptsSuccessOutput() {
+        assertNull(ShellPolicy.failure("Package com.x new state: disabled-user\n"))
+        assertNull(ShellPolicy.failure("Starting: Intent { cmp=com.x/.Main }\nWarning: Activity not started, intent has been delivered to currently running top-most instance.\n"))
+        assertNull(ShellPolicy.failure(""))
+        assertNull(ShellPolicy.failure("package:com.x\npackage:com.y\n"))
+        assertNull(ShellPolicy.failure("  state=PlaybackState {state=3}\n    Error count: 0\n"))
     }
 }

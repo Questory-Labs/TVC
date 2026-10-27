@@ -187,15 +187,15 @@ class CommandDispatcher(private val context: Context, private val adb: AdbManage
     }
 
     private fun sleepTimer(id: Int, minutes: Int, a11yEnabled: Boolean): Reply {
+        if (minutes > MAX_SLEEP_MIN) return Reply.fail(id, "at most $MAX_SLEEP_MIN minutes")
+        if (minutes > 0 && !a11yEnabled && !adb.isConnected) {
+            return Reply.fail(id, "enable the accessibility service or ADB tier", Requirement.ACCESSIBILITY)
+        }
         sleepJob?.cancel()
         if (minutes <= 0) {
             AgentState.sleepAtElapsedMs.value = null
             AgentState.log(ActivityKind.SYSTEM, "Sleep timer off")
             return Reply.ok(id)
-        }
-        if (minutes > MAX_SLEEP_MIN) return Reply.fail(id, "at most $MAX_SLEEP_MIN minutes")
-        if (!a11yEnabled && !adb.isConnected) {
-            return Reply.fail(id, "enable the accessibility service or ADB tier", Requirement.ACCESSIBILITY)
         }
         val at = SystemClock.elapsedRealtime() + minutes * 60_000L
         AgentState.sleepAtElapsedMs.value = at
@@ -254,7 +254,10 @@ class CommandDispatcher(private val context: Context, private val adb: AdbManage
     private suspend fun shell(id: Int, cmd: String, timeoutMs: Long = 15_000): Reply {
         if (!ShellPolicy.isAllowed(cmd)) return Reply.fail(id, "command not allowed")
         return runCatching { adb.shell(cmd, timeoutMs) }
-            .fold({ Reply.ok(id, it) }, { Reply.fail(id, it.message ?: "shell failed", Requirement.ADB) })
+            .fold(
+                { out -> ShellPolicy.failure(out)?.let { Reply.fail(id, it) } ?: Reply.ok(id, out) },
+                { Reply.fail(id, it.message ?: "shell failed", Requirement.ADB) },
+            )
     }
 
     private fun androidKeycode(code: KeyCode): Int = when (code) {
