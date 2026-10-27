@@ -39,8 +39,9 @@ class CommandDispatcher(private val context: Context, private val adb: AdbManage
 
     fun adbConnected(): Boolean = adb.isConnected
 
-    val volumeLevel: Int get() = mediaVolume.level
-    val volumeMax: Int get() = mediaVolume.max
+    private val volumeExternal: Boolean get() = mediaVolume.hasHdmiOut &&inputs.list().isEmpty()
+    val volumeLevel: Int? get() = mediaVolume.level.takeUnless { volumeExternal }
+    val volumeMax: Int? get() = mediaVolume.max.takeUnless { volumeExternal }
 
     fun sleepRemainingSec(): Int? = AgentState.sleepAtElapsedMs.value?.let { ((it - SystemClock.elapsedRealtime()) / 1000).toInt().coerceAtLeast(0) }
 
@@ -66,9 +67,10 @@ class CommandDispatcher(private val context: Context, private val adb: AdbManage
             }
 
             is Command.Volume -> {
-                mediaVolume.volume(command.action, showSystemUi = a11y == null)
-                showVolume(a11y != null)
-                AgentState.log(ActivityKind.VOLUME, if (command.action == VolumeAction.MUTE) "Mute toggled" else "Volume set to ${mediaVolume.level}")
+                val overlay = a11y != null && !volumeExternal
+                mediaVolume.volume(command.action, showSystemUi = !overlay)
+                showVolume(overlay)
+                AgentState.log(ActivityKind.VOLUME, if (command.action == VolumeAction.MUTE) "Mute toggled" else if (volumeExternal) "Volume ${command.action.name.lowercase()} (CEC)" else "Volume set to ${mediaVolume.level}")
                 Reply.ok(id, mediaVolume.level.toString())
             }
 

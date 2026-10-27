@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.tv.TvContract
 import android.media.tv.TvInputInfo
@@ -111,6 +112,7 @@ class MediaVolume(context: Context) {
 
     val level: Int get() = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
     val max: Int get() = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+    val hasHdmiOut: Boolean get() = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { it.type == AudioDeviceInfo.TYPE_HDMI }
 
     fun volume(action: VolumeAction, showSystemUi: Boolean) {
         val direction = when (action) {

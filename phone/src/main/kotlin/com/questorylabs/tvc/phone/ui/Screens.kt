@@ -21,6 +21,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,11 +66,13 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -85,6 +89,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,7 +99,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -115,7 +122,9 @@ import com.questorylabs.tvc.shared.PlaybackState
 import com.questorylabs.tvc.shared.SavedDevice
 import com.questorylabs.tvc.shared.VolumeAction
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.sign
 
 @Composable
 fun DevicesScreen(vm: MainViewModel, wide: Boolean) {
@@ -335,6 +344,7 @@ fun RemoteScreen(vm: MainViewModel, state: DeviceUi, wide: Boolean) {
     val host = state.device.host
     val view = LocalView.current
     val adb = state.info?.adbConnected == true
+    var trackpad by rememberSaveable { mutableStateOf(false) }
     fun tap(command: Command) {
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         vm.fire(host, command)
@@ -350,8 +360,12 @@ fun RemoteScreen(vm: MainViewModel, state: DeviceUi, wide: Boolean) {
 
     val primary: @Composable ColumnScope.() -> Unit = {
         if (!state.connected) OfflineBanner(state) { vm.refresh(host) }
-        NowPlayingCard(state, adb, ::tap)
-        DPad(onKey = { tap(Command.Key(it)) })
+        if (adb) NowPlayingCard(state, ::tap)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+            FilterChip(selected = !trackpad, onClick = { trackpad = false }, label = { Text("D-pad") })
+            FilterChip(selected = trackpad, onClick = { trackpad = true }, label = { Text("Trackpad") })
+        }
+        if (trackpad) Trackpad(onKey = { tap(Command.Key(it)) }) else DPad(onKey = { tap(Command.Key(it)) })
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             RoundKey(Icons.AutoMirrored.Rounded.ArrowBack, "Back") { tap(Command.Key(KeyCode.BACK)) }
             RoundKey(Icons.Rounded.Home, "Home") { tap(Command.Key(KeyCode.HOME)) }
@@ -400,7 +414,7 @@ private fun OfflineBanner(state: DeviceUi, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun NowPlayingCard(state: DeviceUi, adb: Boolean, tap: (Command) -> Unit) {
+private fun NowPlayingCard(state: DeviceUi, tap: (Command) -> Unit) {
     val np = state.nowPlaying
     val playing = np?.state == PlaybackState.PLAYING
     val app = state.apps.firstOrNull { it.packageName == np?.packageName }
@@ -427,14 +441,14 @@ private fun NowPlayingCard(state: DeviceUi, adb: Boolean, tap: (Command) -> Unit
                         color = Tvc.Primary,
                     )
                     Text(
-                        np?.title ?: if (adb) "Nothing playing" else "Media controls",
+                        np?.title ?: "Nothing playing",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Tvc.OnPrimaryContainer,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    (np?.subtitle ?: app?.label ?: if (!adb) "Connect ADB on the TV for titles" else null)?.let {
+                    (np?.subtitle ?: app?.label)?.let {
                         Text(it, style = MaterialTheme.typography.bodyMedium, color = Tvc.OnPrimaryContainer.copy(alpha = 0.8f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -510,6 +524,51 @@ private fun DPad(onKey: (KeyCode) -> Unit) {
 }
 
 @Composable
+private fun Trackpad(onKey: (KeyCode) -> Unit) {
+    val step = with(LocalDensity.current) { 48.dp.toPx() }
+    var pulse by remember { mutableFloatStateOf(0f) }
+    val glow by animateFloatAsState(pulse, tween(250), label = "glow")
+    LaunchedEffect(pulse) { if (pulse > 0f) { delay(120); pulse = 0f } }
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .widthIn(max = 360.dp)
+                .fillMaxWidth()
+                .aspectRatio(1.1f)
+                .clip(RoundedCornerShape(36.dp))
+                .background(Tvc.ContainerLow)
+                .background(Tvc.Primary.copy(alpha = 0.12f * glow))
+                .pointerInput(Unit) { detectTapGestures(onTap = { pulse = 1f; onKey(KeyCode.DPAD_CENTER) }) }
+                .pointerInput(Unit) {
+                    var dx = 0f
+                    var dy = 0f
+                    detectDragGestures(onDragStart = { dx = 0f; dy = 0f }) { change, drag ->
+                        change.consume()
+                        dx += drag.x
+                        dy += drag.y
+                        while (abs(dx) >= step || abs(dy) >= step) {
+                            if (abs(dx) >= abs(dy)) {
+                                onKey(if (dx > 0) KeyCode.DPAD_RIGHT else KeyCode.DPAD_LEFT)
+                                dx -= step * sign(dx)
+                            } else {
+                                onKey(if (dy > 0) KeyCode.DPAD_DOWN else KeyCode.DPAD_UP)
+                                dy -= step * sign(dy)
+                            }
+                            pulse = 1f
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(Icons.Rounded.TouchApp, contentDescription = null, tint = Tvc.OnSurfaceVariant, modifier = Modifier.size(40.dp))
+                Text("Swipe to move · Tap for OK", style = MaterialTheme.typography.bodyMedium, color = Tvc.OnSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ArrowZone(icon: ImageVector, description: String, modifier: Modifier, onClick: () -> Unit) {
     Box(modifier.padding(6.dp).size(84.dp).clip(CircleShape).springPress(onClick, pressedScale = 0.85f), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = description, tint = Tvc.OnSurfaceVariant, modifier = Modifier.size(40.dp))
@@ -556,6 +615,7 @@ private fun VolumeCard(state: DeviceUi, onSet: (Int) -> Unit, onTap: (Command) -
         SectionTitle("Volume") {
             if (max != null && level != null) Text("${(dragging?.roundToInt() ?: level)} / $max", style = MaterialTheme.typography.labelLarge, color = Tvc.Primary)
         }
+        if (state.info != null && (max == null || level == null)) Text("Controls the TV or soundbar over HDMI-CEC", style = MaterialTheme.typography.bodySmall, color = Tvc.Outline)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RoundKey(Icons.AutoMirrored.Rounded.VolumeOff, "Mute") { onTap(Command.Volume(VolumeAction.MUTE)) }
             if (max != null && level != null) {

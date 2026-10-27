@@ -87,6 +87,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -246,16 +247,18 @@ private fun HomePage(app: AgentApp, onSetup: () -> Unit) {
                         }
                         clients.take(3).forEachIndexed { i, client ->
                             Row(
-                                Modifier.fillMaxWidth().height(72.dp).clip(RoundedCornerShape(22.dp)).background(Tvc.ContainerHigh).padding(horizontal = 16.dp),
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Tvc.ContainerHigh).padding(horizontal = 12.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                IconBadge(Icons.Rounded.Smartphone, Tvc.SecondaryContainer, Tvc.OnSecondaryContainer, 44.dp, if (i % 2 == 0) RoundedCornerShape(14.dp) else CircleShape)
+                                IconBadge(Icons.Rounded.Smartphone, Tvc.SecondaryContainer, Tvc.OnSecondaryContainer, 36.dp, if (i % 2 == 0) RoundedCornerShape(12.dp) else CircleShape)
                                 Column(Modifier.weight(1f)) {
-                                    Text(client.name, style = type(18, FontWeight.SemiBold), color = Tvc.OnSurface)
-                                    Text("Connected ${relative(client.connectedAtMs)}", style = type(14), color = Tvc.OnSurfaceVariant)
+                                    Text(client.name, style = type(18, FontWeight.SemiBold), color = Tvc.OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Box(Modifier.size(8.dp).clip(CircleShape).background(Tvc.Online))
+                                        Text(relative(client.connectedAtMs), style = type(14), color = Tvc.OnSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
                                 }
-                                Box(Modifier.size(10.dp).clip(CircleShape).background(Tvc.Online))
                             }
                         }
                     }
@@ -264,10 +267,12 @@ private fun HomePage(app: AgentApp, onSetup: () -> Unit) {
                             Text("Commands from your phone show up here.", style = type(16), color = Tvc.OnSurfaceVariant)
                         }
                         activity.take(4).forEach { entry ->
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 IconBadge(activityIcon(entry.kind), Tvc.ContainerHigh, Tvc.Primary, 36.dp, RoundedCornerShape(12.dp))
-                                Text(entry.text, style = type(17), color = Tvc.OnSurface, maxLines = 1, modifier = Modifier.weight(1f))
-                                Text(relative(entry.atMs), style = type(14), color = Tvc.Outline)
+                                Column(Modifier.weight(1f)) {
+                                    Text(entry.text, style = type(17), color = Tvc.OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(relative(entry.atMs), style = type(14), color = Tvc.Outline, maxLines = 1)
+                                }
                             }
                         }
                     }
